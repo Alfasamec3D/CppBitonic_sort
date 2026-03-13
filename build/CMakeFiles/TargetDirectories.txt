@@ -1,0 +1,5 @@
+/mnt/windows/media/programs/CppBitonic_sort/build/CMakeFiles/main.dir
+/mnt/windows/media/programs/CppBitonic_sort/build/CMakeFiles/edit_cache.dir
+/mnt/windows/media/programs/CppBitonic_sort/build/CMakeFiles/rebuild_cache.dir
+/mnt/windows/media/programs/CppBitonic_sort/build/tests/CMakeFiles/edit_cache.dir
+/mnt/windows/media/programs/CppBitonic_sort/build/tests/CMakeFiles/rebuild_cache.dir
