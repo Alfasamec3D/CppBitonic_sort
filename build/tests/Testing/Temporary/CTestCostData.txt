@@ -1,3 +1,0 @@
-/mnt/windows/media/programs/CppBitonic_sort/tests/e2e/io/001.dat 3 0.0379601
-/mnt/windows/media/programs/CppBitonic_sort/tests/e2e/io/002.dat 7 0.016295
----
