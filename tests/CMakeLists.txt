@@ -1,7 +1,5 @@
 enable_testing()
 
-find_package(GTest REQUIRED)
-
 find_program(BASH_EXECUTABLE bash REQUIRED)
 file (GLOB testfiles "e2e/io/*.dat")
 foreach (file ${testfiles})
