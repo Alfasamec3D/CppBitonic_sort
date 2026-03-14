@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include<cassert>
 
 std::string loadKernel(const std::string& name) {
   std::ifstream file(name);
@@ -13,19 +14,27 @@ std::string loadKernel(const std::string& name) {
 }
 
 int main() {
-  std::string source;
-  std::string kernel_directory;
-  kernel_directory = std::string(PROJECT_ROOT) + "/kernel/bi_sort.cl";
+  const int LOCAL = 256;
+  std::string source_local;
+  std::string source_merge;
+
+  std::string kernel_local_directory;
+  std::string kernel_merge_directory;
+  kernel_local_directory = std::string(PROJECT_ROOT) + "/kernel/bi_sort.cl";
+  kernel_merge_directory =
+      std::string(PROJECT_ROOT) + "/kernel/bi_sort_merge.cl";
   try {
-    source = loadKernel(kernel_directory);
+    source_local = loadKernel(kernel_local_directory);
+    source_merge = loadKernel(kernel_merge_directory);
   } catch (const std::runtime_error& e) {
     std::cerr << "Error " << e.what() << std::endl;
     return 1;
   }
+
   int N;
-
   std::cin >> N;
-
+  assert((N & (N - 1)) == 0);
+  assert(N >= LOCAL);
   std::vector<int> input(N);
 
   for (int i = 0; i < N; ++i) {
@@ -53,45 +62,43 @@ int main() {
 
   cl::CommandQueue queue(context, device);
 
-  cl::Program program(context, source);
-  program.build({device});
+  cl::Program programLocal(context, source_local);
+  cl::Program programMerge(context, source_merge);
+  
+  programLocal.build({device});
+  programMerge.build({device});
 
-  cl::Kernel kernel(program, "bitonic_sort");
+  cl::Kernel kernelLocal(programLocal, "bitonic_sort");
+  cl::Kernel kernelMerge(programMerge, "bitonic_merge");
 
   cl::Buffer buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                     sizeof(int) * N, input.data());
 
+  cl::NDRange global(N);
+  cl::NDRange local(LOCAL);
+
   auto start = std::chrono ::high_resolution_clock::now();
 
-  for (unsigned int k = 2; k <= N; k <<= 1) {
-    for (unsigned int j = k >> 1; j > 0; j >>= 1) {
-      kernel.setArg(0, buffer);
-      kernel.setArg(1, j);
-      kernel.setArg(2, k);
+  kernelLocal.setArg(0, buffer);
 
-      queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N),
-                                 cl::NullRange);
-      queue.finish();
+  queue.enqueueNDRangeKernel(kernelLocal, cl::NullRange, global, local);
+
+  for (unsigned int k = LOCAL * 2; k <= N; k <<= 1) {
+    for (unsigned int j = k >> 1; j > 0; j >>= 1) {
+      kernelMerge.setArg(0, buffer);
+      kernelMerge.setArg(1, j);
+      kernelMerge.setArg(2, k);
+
+      queue.enqueueNDRangeKernel(kernelMerge, cl::NullRange, global, local);
     }
   }
+  queue.finish();
   auto end = std::chrono::high_resolution_clock::now();
 
   queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(int) * N, input.data());
 
-  double timeGPU = std::chrono::duration<double>(end - start).count();
-
-  start = std::chrono::high_resolution_clock::now();
-
-  std::sort(copy_input.begin(), copy_input.end());
-
-  end = std::chrono::high_resolution_clock::now();
-
-  double timeCPU = std::chrono::duration<double>(end - start).count();
-
-  // std::cout << timeGPU << std::endl << timeCPU << std::endl;
 
   for (int i = 0; i < N; ++i) std::cout << input[i] << " ";
-  // std::cout << std::endl;
-  // for (int i = 0; i < N; ++i) std::cout << copy_input[i] << " ";
+
   return 0;
 }
